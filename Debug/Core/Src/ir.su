@@ -1,0 +1,4 @@
+../Core/Src/ir.c:16:16:calc_pulse	16	static
+../Core/Src/ir.c:34:6:ir_tim_interrupt	16	static
+../Core/Src/ir.c:67:6:ir_init	8	static
+../Core/Src/ir.c:73:5:ir_read	16	static
