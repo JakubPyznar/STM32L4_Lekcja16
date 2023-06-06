@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "ir.h"
 #include "ws2812b.h"
 /* USER CODE END Includes */
@@ -239,6 +240,75 @@ void automatic_mode2(void)
 	color_patern(&k, &dir_k);
 }
 
+//tryb automatyczny nr 3
+void automatic_mode3(void)
+{
+	static int led_pos = 0;
+	static bool dir = true;
+	static uint8_t color_r = 0, color_g = 10, color_b = 20;
+
+	ws2812b_set_color(led_pos, gamma8[color_r], gamma8[color_g], gamma8[color_b]);
+	ws2812b_update();
+
+	if (dir)
+	{
+		if (led_pos < 6) led_pos++;
+		else
+		{
+			dir = !dir;
+			color_r = rand()%limit;
+			color_g = rand()%limit;
+			color_b = rand()%limit;
+		}
+	}
+	else
+	{
+		if (led_pos > 0) led_pos--;
+		else
+		{
+			dir = !dir;
+			color_r = rand()%limit;
+			color_g = rand()%limit;
+			color_b = rand()%limit;
+		}
+	}
+
+	HAL_Delay(100);
+}
+
+//tryb automatyczny nr 4
+void automatic_mode4(void)
+{
+	static int led_pos = 0;
+	static int positions[7] = {0}, positions_left = 7;
+	static uint8_t color_r = 0, color_g = 10, color_b = 20;
+
+	ws2812b_set_color(led_pos, gamma8[color_r], gamma8[color_g], gamma8[color_b]);
+	ws2812b_update();
+
+	while(1)
+	{
+		led_pos = rand()%7;
+		if (positions[led_pos] == 0)
+		{
+			positions[led_pos] = 1;
+			positions_left--;
+			break;
+		}
+		else if (positions_left == 0)
+		{
+			memset(positions, 0, sizeof(positions));
+			positions_left = 7;
+			color_r = rand()%limit;
+			color_g = rand()%limit;
+			color_b = rand()%limit;
+			break;
+		}
+	}
+
+	HAL_Delay(100);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -287,7 +357,7 @@ int main(void)
   uint32_t last_time = HAL_GetTick();	// do odmierzania interwalu 1000ms w wysylaniu danych do konsoli po USART2
   uint32_t active_led_no = 0;			// numer wybranej diody (0...6)
   int active_color = 1;					// edytowany kolor (1-red, 2-green, 3-blue)
-  int mode = 1;							// tryby pracy (1-manual pojedyncza dioda, 2-manual wszystkie diody, 3-automat)
+  int mode = 1;							// tryby pracy (1-manual pojedyncza dioda, 2-manual wszystkie diody, 3..5-automat)
 
   led_t led[7];
   led_reset(led);
@@ -296,50 +366,79 @@ int main(void)
   {
 	  int value = ir_read();
 
+	  switch (value)	// kod wspolny dla wszystkich trybow sterowania
+	  {
+	  case IR_CODE_7:
+		  active_color = 1;
+		  break;
+	  case IR_CODE_8:
+		  active_color = 2;
+		  break;
+	  case IR_CODE_9:
+		  active_color = 3;
+		  break;
+	  case IR_CODE_ONOFF:
+		  if (mode == 1)
+			  toggle_led(&led[active_led_no]);
+		  else
+		  {
+			  for (int i=0; i<7; i++)
+			  {
+				  toggle_led(&led[i]);
+			  }
+		  }
+		  HAL_Delay(NEXT_CLICK_DELAY);
+		  break;
+  	  case IR_CODE_MENU:
+  		  active_led_no = 0;
+  		  active_color = 1;
+  		  if (mode < 6) mode++;
+  		  else mode = 1;
+  		  led_reset(led);
+  		  HAL_Delay(NEXT_CLICK_DELAY);
+  		  break;
+	  }
+
 	  if (mode == 1)	// tryb sterowania pojedyncza dioda led
 	  {
 		  switch (value)
 		  	  {
-		  	  case IR_CODE_1:
+		  	  case IR_CODE_0:
 		  		  active_led_no = 0;
 		  		  active_color = 1;
 		  		  break;
-		  	  case IR_CODE_2:
+		  	  case IR_CODE_1:
 		  		  active_led_no = 1;
 		  		  active_color = 1;
 		  		  break;
-		  	  case IR_CODE_3:
+		  	  case IR_CODE_2:
 		  		  active_led_no = 2;
 		  		  active_color = 1;
 		  		  break;
-		  	  case IR_CODE_4:
+		  	  case IR_CODE_3:
 		  		  active_led_no = 3;
 		  		  active_color = 1;
 		  		  break;
-		  	  case IR_CODE_5:
+		  	  case IR_CODE_4:
 		  		  active_led_no = 4;
 		  		  active_color = 1;
 		  		  break;
-		  	  case IR_CODE_6:
+		  	  case IR_CODE_5:
 		  		  active_led_no = 5;
 		  		  active_color = 1;
 		  		  break;
-		  	  case IR_CODE_7:
+		  	  case IR_CODE_6:
 		  		  active_led_no = 6;
 		  		  active_color = 1;
 		  		  break;
-		  	  case IR_CODE_ONOFF:
-		  		  toggle_led(&led[active_led_no]);
-		  		  HAL_Delay(NEXT_CLICK_DELAY);
-		  		  break;
 		  	  case IR_CODE_REWIND:
-		  		  if (active_color > 1) active_color--;
-		  		  else active_color = 3;
+		  		  if (active_led_no > 0) active_led_no--;
+		  		  else active_led_no = 6;
 		  		  HAL_Delay(NEXT_CLICK_DELAY);
 		  		  break;
 		  	  case IR_CODE_FORWARD:
-		  		  if (active_color < 3) active_color++;
-		  		  else active_color = 1;
+		  		  if (active_led_no < 6) active_led_no++;
+				  else active_led_no = 0;
 		  		  HAL_Delay(NEXT_CLICK_DELAY);
 		  		  break;
 		  	  case IR_CODE_PLUS:
@@ -352,35 +451,12 @@ int main(void)
 		  		  ws2812b_set_color(led[active_led_no].no, led[active_led_no].r, led[active_led_no].g, led[active_led_no].b);
 		  		  ws2812b_update();
 		  		  break;
-		  	  case IR_CODE_MENU:
-		  		  active_color = 1;
-		  		  mode = 2;
-		  		  led_reset(led);
-		  		  HAL_Delay(NEXT_CLICK_DELAY);
-		  		  break;
 		  	  }
 	  }
 	  else if (mode == 2)	// tryb sterowania wszystkimi diodami led
 	  {
 		  switch (value)
 			  {
-			  case IR_CODE_ONOFF:
-				  for (int i=0; i<7; i++)
-				  {
-					  toggle_led(&led[i]);
-				  }
-				  HAL_Delay(NEXT_CLICK_DELAY);
-				  break;
-			  case IR_CODE_REWIND:
-				  if (active_color > 1) active_color--;
-				  else active_color = 3;
-				  HAL_Delay(NEXT_CLICK_DELAY);
-				  break;
-			  case IR_CODE_FORWARD:
-				  if (active_color < 3) active_color++;
-				  else active_color = 1;
-				  HAL_Delay(NEXT_CLICK_DELAY);
-				  break;
 			  case IR_CODE_PLUS:
 				  for (int i=0; i<7; i++)
 				  {
@@ -397,58 +473,23 @@ int main(void)
 				  }
 				  ws2812b_update();
 				  break;
-			  case IR_CODE_MENU:
-				  active_led_no = 0;
-				  active_color = 1;
-				  mode = 3;
-				  led_reset(led);
-				  HAL_Delay(NEXT_CLICK_DELAY);
-				  break;
 			  }
 	  }
 	  else if (mode == 3)				// tryb automatyczny nr 1
 	  {
 		  if (led[0].power) automatic_mode1();
-
-		  switch (value)
-			  {
-			  case IR_CODE_ONOFF:
-				  for (int i=0; i<7; i++)
-				  {
-					  toggle_led(&led[i]);
-				  }
-				  HAL_Delay(NEXT_CLICK_DELAY);
-				  break;
-			  case IR_CODE_MENU:
-				  active_led_no = 0;
-				  active_color = 1;
-				  mode = 4;
-				  led_reset(led);
-				  HAL_Delay(NEXT_CLICK_DELAY);
-				  break;
-			  }
 	  }
-	  else								// tryb automatyczny nr 2
+	  else if (mode == 4)				// tryb automatyczny nr 2
 	  {
 		  if (led[0].power) automatic_mode2();
-
-		  switch (value)
-			  {
-			  case IR_CODE_ONOFF:
-				  for (int i=0; i<7; i++)
-				  {
-					  toggle_led(&led[i]);
-				  }
-				  HAL_Delay(NEXT_CLICK_DELAY);
-				  break;
-			  case IR_CODE_MENU:
-				  active_led_no = 0;
-				  active_color = 1;
-				  mode = 1;
-				  led_reset(led);
-				  HAL_Delay(NEXT_CLICK_DELAY);
-				  break;
-			  }
+	  }
+	  else if (mode == 5)				// tryb automatyczny nr 3
+	  {
+		  if (led[0].power) automatic_mode3();
+	  }
+	  else								// tryb automatyczny nr 4
+	  {
+		  if (led[0].power) automatic_mode4();
 	  }
 
 	  // pomoc przy debugowaniu - wysylanie na UART
