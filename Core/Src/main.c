@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include "ir.h"
 #include "ws2812b.h"
 /* USER CODE END Includes */
@@ -140,23 +141,25 @@ void change_brightness(led_t* led, int color_number, bool dir)
 void toggle_led(led_t* led)
 {
 	if (led->power) ws2812b_set_color(led->no, 0, 0, 0);
-	else 			ws2812b_set_color(led->no, led->r, led->g, led->b);
+	else ws2812b_set_color(led->no, led->r, led->g, led->b);
 
 	led->power = !led->power;
 	ws2812b_update();
 }
 
 // inicjalizacja oraz reset ledow
-void led_reset(led_t led[])
+void led_reset(led_t* led)
 {
+	led_t* pointer = led;
 	for (int i=0; i<7; i++)
 	{
-		led[i].no = i;
-		led[i].r = 2;
-		led[i].g = 2;
-		led[i].b = 2;
-		led[i].power = true;
-		ws2812b_set_color(led[i].no, led[i].r, led[i].g, led[i].b);
+		pointer->no = i;
+		pointer->r = 2;
+		pointer->g = 2;
+		pointer->b = 2;
+		pointer->power = true;
+		ws2812b_set_color(pointer->no, pointer->r, pointer->g, pointer->b);
+		pointer++;
 	}
 	ws2812b_update();
 }
@@ -297,7 +300,7 @@ void automatic_mode4(void)
 		}
 		else if (positions_left == 0)
 		{
-			memset(positions, 0, sizeof(positions));
+			memset(&positions[0], 0, sizeof(positions));
 			positions_left = 7;
 			color_r = rand()%limit;
 			color_g = rand()%limit;
@@ -360,7 +363,7 @@ int main(void)
   int mode = 1;							// tryby pracy (1-manual pojedyncza dioda, 2-manual wszystkie diody, 3..5-automat)
 
   led_t led[7];
-  led_reset(led);
+  led_reset(&led[0]);
 
   while (1)
   {
@@ -394,7 +397,7 @@ int main(void)
   		  active_color = 1;
   		  if (mode < 6) mode++;
   		  else mode = 1;
-  		  led_reset(led);
+  		  led_reset(&led[0]);
   		  HAL_Delay(NEXT_CLICK_DELAY);
   		  break;
 	  }
